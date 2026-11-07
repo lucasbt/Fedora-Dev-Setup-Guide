@@ -1,6 +1,6 @@
 <div align="center">
   <img src="https://upload.wikimedia.org/wikipedia/commons/3/3f/Fedora_logo.svg" alt="Fedora Logo" width="100"/>
-  <img src="https://upload.wikimedia.org/wikipedia/commons/1/1a/GNOME_icon.svg" alt="GNOME Logo" width="100"/>
+  <img src="https://upload.wikimedia.org/wikipedia/commons/c/cb/GnomeLogoHorizontal.svg" alt="GNOME Logo" width="100"/>
 </div>
 
 # Setup Guide: Fedora Linux 45 (Fullstack & Mobile)
