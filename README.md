@@ -6,8 +6,9 @@
 
 # Setup Guide: Fedora Linux 45 (Fullstack & Mobile)
 
-**OS:** Fedora Linux 45 (GNOME 51.1 - Wayland) | **Secure Boot:** Disabled  
-**Stack:** Java, Node.js, Python, Go, Rust, Flutter, Native Android  
+**OS:** Fedora Linux 45 (GNOME 51.1 - Wayland) | **Secure Boot:** Disabled
+
+**Stack:** Java, Node.js, Python, Go, Rust, Flutter, Native Android
 
 ---
 
@@ -24,11 +25,10 @@ sudo dnf upgrade --refresh -y
 ```
 
 > **⚠️ IMPORTANT:** It is highly recommended to restart after this initial update, especially if the `kernel` package was updated.
+
 ```bash
 sudo reboot
 ```
-
----
 
 ## Phase 2: Firmware and Repositories
 
@@ -43,6 +43,7 @@ sudo fwupdmgr refresh --force
 sudo fwupdmgr get-updates
 sudo fwupdmgr update
 ```
+
 > **⚠️ Note:** After firmware updates, you need a reboot.
 
 ```bash
@@ -60,8 +61,6 @@ flatpak remote-delete fedora
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 ```
 
----
-
 ## Phase 3: NVIDIA, CUDA, and Video Acceleration
 
 Install prerequisites and drivers for your RTX 3050 (essential for emulators and local AI), plus Vulkan and Intel acceleration.
@@ -78,12 +77,12 @@ sudo dnf install mesa-vulkan-drivers vulkan-loader mesa-libGLU libva-utils -y
 ```
 
 > **⏳ WAIT:** The NVIDIA module compilation happens in the background. Wait about 5 to 10 minutes and run the command below:
+
 ```bash
 modinfo -F version nvidia
 ```
-*If the command returns the driver version (e.g., 550.xx), the process finished successfully. **Restart your computer again** to load NVIDIA GPU.*
 
----
+*If the command returns the driver version (e.g., 550.xx), the process finished successfully. **Restart your computer again** to load the UI using the NVIDIA GPU.*
 
 ## Phase 4: System Optimizations, Codecs, and Useful Stuff
 
@@ -114,6 +113,7 @@ sudo dnf install -y openh264 gstreamer1-plugin-openh264 mozilla-openh264
 sudo dnf config-manager --set-enabled fedora-cisco-openh264
 sudo dnf update -y
 ```
+
 > **⚠️ Important:** Restart Firefox and check that the OpenH264 plugin is enabled in `about:addons`.
 
 ```bash
@@ -128,14 +128,13 @@ sudo systemctl disable NetworkManager-wait-online.service
 ```
 
 **Disable GNOME Software on Autostart (Saves up to 900MB of RAM):**
+
 ```bash
 mkdir -p ~/.config/autostart
 cp /usr/share/applications/org.gnome.Software.desktop ~/.config/autostart/
 echo "X-GNOME-Autostart-enabled=false" >> ~/.config/autostart/org.gnome.Software.desktop
 dconf write /org/gnome/desktop/search-providers/disabled "['org.gnome.Software.desktop']"
 ```
-
----
 
 ## Phase 5: Developer Fonts
 
@@ -144,8 +143,6 @@ Install the best fonts with ligature support for your IDEs and Terminal:
 ```bash
 sudo dnf install fira-code-fonts cascadia-code-fonts jetbrains-mono-fonts -y
 ```
-
----
 
 ## Phase 6: Utilities and Terminal Core
 
@@ -161,9 +158,8 @@ echo 'eval "$(oh-my-posh init bash)"' >> ~/.bashrc
 curl https://mise.run | sh
 echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc
 ```
-*(Apply the changes by running `source ~/.bashrc`)*
 
----
+*(Apply the changes by running `source ~/.bashrc`)*
 
 ## Phase 7: Containers and Python Compilation
 
@@ -176,16 +172,16 @@ systemctl --user enable --now podman.socket
 sudo dnf install gcc make zlib-devel bzip2-devel readline-devel sqlite-devel openssl-devel tk-devel libffi-devel xz-devel -y
 ```
 
----
-
 ## Phase 8: Programming Languages (Mise)
+
+We use `@lts` for ecosystems that support Long Term Support (like Java and Node.js) and `@latest` for those that don't, ensuring you always have the most stable and up-to-date environment.
 
 ```bash
 mise registry
 
 # Install language versions
-mise use --global java@21
-mise use --global node@22
+mise use --global java@lts
+mise use --global node@lts
 mise use --global python@latest
 mise use --global go@latest
 mise use --global rust@latest
@@ -194,19 +190,20 @@ mise use --global rust@latest
 corepack enable
 ```
 
----
-
 ## Phase 9: Mobile Ecosystem (Android and Flutter)
 
 **1. KVM (Acceleration for Android Emulator)**
+
 ```bash
 sudo dnf install qemu-kvm libvirt virt-manager -y
 sudo systemctl enable --now libvirtd
 sudo usermod -aG libvirt,kvm $USER
 ```
+
 *(Log out and log back in to apply the group changes)*
 
 **2. Flutter SDK**
+
 ```bash
 sudo dnf install clang cmake ninja-build pkgconf-pkg-config gtk3-devel -y
 git clone https://github.com/flutter/flutter.git -b stable ~/.local/flutter
@@ -214,6 +211,7 @@ git clone https://github.com/flutter/flutter.git -b stable ~/.local/flutter
 
 **3. Environment Variables**
 Add this to your `~/.bashrc`:
+
 ```bash
 # Mobile PATHs
 export PATH="$PATH:$HOME/.local/flutter/bin"
@@ -221,13 +219,13 @@ export ANDROID_HOME="$HOME/Android/Sdk"
 export PATH="$PATH:$ANDROID_HOME/emulator"
 export PATH="$PATH:$ANDROID_HOME/platform-tools"
 ```
-Run `source ~/.bashrc` and then accept the licenses with `flutter doctor --android-licenses`.
 
----
+Run `source ~/.bashrc` and then accept the licenses with `flutter doctor --android-licenses`.
 
 ## Phase 10: IDEs, Browsers, and AI
 
-**Installation via DNF (Official Repositories)**
+**Browsers and VS Code (Official Repositories)**
+
 ```bash
 sudo dnf install fedora-workstation-repositories -y
 sudo dnf config-manager --set-enabled google-chrome
@@ -237,13 +235,36 @@ sudo sh -c 'echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.m
 sudo dnf install google-chrome-stable firefox code -y
 ```
 
-**Manual Tools / AI:**
-*   **JetBrains Toolbox (Android Studio and IntelliJ IDEA):** [Download](https://www.jetbrains.com/toolbox-app/)
-*   **Cursor IDE (.AppImage):** [Download](https://cursor.com/download) - *You can use Gearlever (installed in Phase 4) to manage it easily!*
-*   **OpenCode CLI:** `npm install -g @opencode/cli`
-*   **Antigravity:** Download the official desktop/CLI, move the executable to `~/.local/bin/` and run `chmod +x`.
+**Manual Tools (JetBrains & Cursor):**
 
----
+* **JetBrains Toolbox:** [Download](https://www.jetbrains.com/toolbox-app/)
+* **Cursor IDE (.AppImage):** [Download](https://cursor.com/download) - *Use Gearlever to manage it easily!*
+
+**OpenCode & Antigravity (AI Ecosystem):**
+
+```bash
+# OpenCode CLI
+curl -fsSL https://opencode.ai/v2/install | bash
+
+# OpenCode Desktop (Native RPM install via DNF)
+sudo dnf install -y https://opencode.ai/update/api/latest/desktop/opencode/opencode-desktop-linux-x86_64.rpm
+
+# Antigravity CLI
+curl -fsSL https://antigravity.google/cli/install.sh | bash
+
+# Create standard user directories for manual software extraction
+mkdir -p ~/.local/opt/antigravity-ide ~/.local/opt/antigravity-app
+
+# Antigravity IDE (tar.gz extraction)
+wget -qO- "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.6.0-5526304964083712/linux-x64/Antigravity%20IDE.tar.gz" | tar -xz -C ~/.local/opt/antigravity-ide
+
+# Antigravity App (tar.gz extraction)
+wget -qO- "https://storage.googleapis.com/antigravity-public/antigravity-hub/2.29.0-5723181030440960/linux-x64/Antigravity.tar.gz" | tar -xz -C ~/.local/opt/antigravity-app
+
+# Add the extracted directories to your PATH
+echo 'export PATH="$PATH:$HOME/.local/opt/antigravity-ide:$HOME/.local/opt/antigravity-app"' >> ~/.bashrc
+```
+*(Apply changes by running `source ~/.bashrc`)*
 
 ## Phase 11: System Cleanup
 
@@ -255,15 +276,17 @@ sudo dnf clean all
 sudo dnf autoremove -y
 ```
 
----
-
 ## 🔥 Bonus: Force NVIDIA on the Emulator (Prime Offload)
+
+**Note:** By default, your laptop uses the Intel UHD Graphics to render the GNOME interface to save maximum battery life, keeping the NVIDIA GPU sleeping.
 
 To make the emulator run smoothly using the RTX 3050 instead of Intel Graphics:
 
-1.  In Android Studio, edit the Emulator and change **Graphics** to `Hardware - GLES 2.0`.
-2.  Add this alias to your `~/.bashrc` to launch standalone emulators from the terminal using the dedicated GPU:
-    ```bash
-    alias emulador-nvidia='__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia emulator'
-    ```
-    *Usage:* `emulador-nvidia -avd YOUR_AVD_NAME`
+1. In Android Studio, edit the Emulator and change **Graphics** to `Hardware - GLES 2.0`.
+2. Add this alias to your `~/.bashrc` to launch standalone emulators from the terminal using the dedicated GPU:
+
+   ```bash
+   alias emulador-nvidia='__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia emulator'
+   ```
+
+   *Usage:* `emulador-nvidia -avd YOUR_AVD_NAME`
