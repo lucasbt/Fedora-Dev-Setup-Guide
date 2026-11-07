@@ -1,8 +1,15 @@
-# Setup Guide: Fedora Linux 45 (Fullstack & Mobile)
+<p align="center">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/3/3f/Fedora_logo.svg" alt="Fedora Logo" height="80" />
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://upload.wikimedia.org/wikipedia/commons/c/cb/GnomeLogoHorizontal.svg" alt="GNOME Logo" height="80" />
+</p>
 
-**OS:** Fedora Linux 45 (GNOME 51.1 - Wayland) | **Secure Boot:** Disabled
+<h1 align="center">Setup Guide: Fedora Linux 45 (Fullstack & Mobile)</h1>
 
-**Stack:** Java, Node.js, Python, Go, Rust, Flutter, Native Android
+**OS:** Fedora Linux 45 (GNOME 51.1 - Wayland) | **Secure Boot:** Disabled  
+**Stack:** Java, Node.js, Python, Go, Rust, Flutter, Native Android  
+
+---
 
 ## Phase 1: DNF Optimization and Base Update (Crucial)
 
@@ -15,8 +22,9 @@ echo -e "max_parallel_downloads=10\nfastestmirror=True" | sudo tee -a /etc/dnf/d
 # Update the entire system
 sudo dnf upgrade --refresh -y
 ```
-
 > **⚠️ IMPORTANT:** If the command above updated the `kernel` package, **RESTART YOUR COMPUTER NOW** before proceeding to Phase 2.
+
+---
 
 ## Phase 2: Firmware and Repositories
 
@@ -36,6 +44,8 @@ sudo dnf groupinstall "Development Tools" -y
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 ```
 
+---
+
 ## Phase 3: NVIDIA and CUDA
 
 Proprietary driver installation for the RTX 3050 (essential for emulators and local AI).
@@ -46,12 +56,12 @@ sudo dnf install akmod-nvidia xorg-x11-drv-nvidia-cuda -y
 ```
 
 > **⏳ WAIT:** The module compilation happens in the background. Wait about 5 to 10 minutes and run the command below:
-
 ```bash
 modinfo -F version nvidia
 ```
-
 *If the command returns the driver version (e.g., 550.xx), the process finished successfully. **Restart your computer again** to load the UI using the NVIDIA GPU.*
+
+---
 
 ## Phase 4: System Optimizations, Codecs, and AppImages
 
@@ -81,13 +91,14 @@ sudo systemctl disable NetworkManager-wait-online.service
 ```
 
 **Disable GNOME Software on Autostart (Saves up to 900MB of RAM):**
-
 ```bash
 mkdir -p ~/.config/autostart
 cp /usr/share/applications/org.gnome.Software.desktop ~/.config/autostart/
 echo "X-GNOME-Autostart-enabled=false" >> ~/.config/autostart/org.gnome.Software.desktop
 dconf write /org/gnome/desktop/search-providers/disabled "['org.gnome.Software.desktop']"
 ```
+
+---
 
 ## Phase 5: Developer Fonts
 
@@ -96,6 +107,8 @@ Install the best fonts with ligature support for your IDEs and Terminal:
 ```bash
 sudo dnf install fira-code-fonts cascadia-code-fonts jetbrains-mono-fonts -y
 ```
+
+---
 
 ## Phase 6: Utilities and Terminal Core
 
@@ -111,8 +124,9 @@ echo 'eval "$(oh-my-posh init bash)"' >> ~/.bashrc
 curl https://mise.run | sh
 echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc
 ```
-
 *(Apply the changes by running `source ~/.bashrc`)*
+
+---
 
 ## Phase 7: Containers and Python Compilation
 
@@ -124,6 +138,8 @@ systemctl --user enable --now podman.socket
 # Heavy dependencies for local compilation (Essential for Python via mise)
 sudo dnf install gcc make zlib-devel bzip2-devel readline-devel sqlite-devel openssl-devel tk-devel libffi-devel xz-devel -y
 ```
+
+---
 
 ## Phase 8: Programming Languages (Mise)
 
@@ -141,20 +157,19 @@ mise use --global rust@latest
 corepack enable
 ```
 
+---
+
 ## Phase 9: Mobile Ecosystem (Android and Flutter)
 
 **1. KVM (Acceleration for Android Emulator)**
-
 ```bash
 sudo dnf install qemu-kvm libvirt virt-manager -y
 sudo systemctl enable --now libvirtd
 sudo usermod -aG libvirt,kvm $USER
 ```
-
 *(Log out and log back in to apply the group changes)*
 
 **2. Flutter SDK**
-
 ```bash
 sudo dnf install clang cmake ninja-build pkgconf-pkg-config gtk3-devel -y
 git clone https://github.com/flutter/flutter.git -b stable ~/.local/flutter
@@ -162,7 +177,6 @@ git clone https://github.com/flutter/flutter.git -b stable ~/.local/flutter
 
 **3. Environment Variables**
 Add this to your `~/.bashrc`:
-
 ```bash
 # Mobile PATHs
 export PATH="$PATH:$HOME/.local/flutter/bin"
@@ -170,13 +184,13 @@ export ANDROID_HOME="$HOME/Android/Sdk"
 export PATH="$PATH:$ANDROID_HOME/emulator"
 export PATH="$PATH:$ANDROID_HOME/platform-tools"
 ```
-
 Run `source ~/.bashrc` and then accept the licenses with `flutter doctor --android-licenses`.
+
+---
 
 ## Phase 10: IDEs, Browsers, and AI
 
 **Installation via DNF (Official Repositories)**
-
 ```bash
 sudo dnf install fedora-workstation-repositories -y
 sudo dnf config-manager --set-enabled google-chrome
@@ -187,21 +201,19 @@ sudo dnf install google-chrome-stable firefox code -y
 ```
 
 **Manual Tools / AI:**
+*   **JetBrains Toolbox (Android Studio and IntelliJ IDEA):** [Download](https://www.jetbrains.com/toolbox-app/)
+*   **Cursor IDE (.AppImage):** [Download](https://cursor.com/download)
+*   **OpenCode CLI:** `npm install -g @opencode/cli`
+*   **Antigravity:** Download the official desktop/CLI, move the executable to `~/.local/bin/` and run `chmod +x`.
 
-* **JetBrains Toolbox (Android Studio and IntelliJ IDEA):** [Download](https://www.jetbrains.com/toolbox-app/)
-* **Cursor IDE (.AppImage):** [Download](https://cursor.com/download)
-* **OpenCode CLI:** `npm install -g @opencode/cli`
-* **Antigravity:** Download the official desktop/CLI, move the executable to `~/.local/bin/` and run `chmod +x`.
+---
 
 ## 🔥 Bonus: Force NVIDIA on the Emulator (Prime Offload)
 
 To make the emulator run smoothly using the RTX 3050 instead of Intel Graphics:
-
 1. In Android Studio, edit the Emulator and change **Graphics** to `Hardware - GLES 2.0`.
 2. Add this alias to your `~/.bashrc` to launch standalone emulators from the terminal using the dedicated GPU:
-
    ```bash
    alias emulador-nvidia='__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia emulator'
    ```
-
    *Usage:* `emulador-nvidia -avd YOUR_AVD_NAME`
