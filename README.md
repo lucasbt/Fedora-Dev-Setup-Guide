@@ -6,7 +6,6 @@
 
 # Setup Guide: Fedora Linux 45 (Fullstack & Mobile)
 
-**Hardware:** Acer Nitro AN515-58 | i5-12450H | 32GB RAM | RTX 3050  
 **OS:** Fedora Linux 45 (GNOME 51.1 - Wayland) | **Secure Boot:** Disabled  
 **Stack:** Java, Node.js, Python, Go, Rust, Flutter, Native Android  
 
@@ -82,7 +81,7 @@ sudo dnf install mesa-vulkan-drivers vulkan-loader mesa-libGLU libva-utils -y
 ```bash
 modinfo -F version nvidia
 ```
-*If the command returns the driver version (e.g., 550.xx), the process finished successfully. **Restart your computer again** to load the UI using the NVIDIA GPU.*
+*If the command returns the driver version (e.g., 550.xx), the process finished successfully. **Restart your computer again** to load NVIDIA GPU.*
 
 ---
 
