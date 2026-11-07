@@ -1,11 +1,11 @@
-<p align="center">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/3/3f/Fedora_logo.svg" alt="Fedora Logo" height="80" />
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://upload.wikimedia.org/wikipedia/commons/c/cb/GnomeLogoHorizontal.svg" alt="GNOME Logo" height="80" />
-</p>
+<div align="center">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/3/3f/Fedora_logo.svg" alt="Fedora Logo" width="100"/>
+  <img src="https://upload.wikimedia.org/wikipedia/commons/1/1a/GNOME_icon.svg" alt="GNOME Logo" width="100"/>
+</div>
 
-<h1 align="center">Setup Guide: Fedora Linux 45 (Fullstack & Mobile)</h1>
+# Setup Guide: Fedora Linux 45 (Fullstack & Mobile)
 
+**Hardware:** Acer Nitro AN515-58 | i5-12450H | 32GB RAM | RTX 3050  
 **OS:** Fedora Linux 45 (GNOME 51.1 - Wayland) | **Secure Boot:** Disabled  
 **Stack:** Java, Node.js, Python, Go, Rust, Flutter, Native Android  
 
@@ -19,43 +19,65 @@ Before updating the system, let's optimize the package manager for faster downlo
 # Optimize DNF speed
 echo -e "max_parallel_downloads=10\nfastestmirror=True" | sudo tee -a /etc/dnf/dnf.conf
 
-# Update the entire system
+# Update everything because fresh installs always have outdated packages
 sudo dnf upgrade --refresh -y
 ```
-> **⚠️ IMPORTANT:** If the command above updated the `kernel` package, **RESTART YOUR COMPUTER NOW** before proceeding to Phase 2.
+
+> **⚠️ IMPORTANT:** It is highly recommended to restart after this initial update, especially if the `kernel` package was updated.
+```bash
+sudo reboot
+```
 
 ---
 
 ## Phase 2: Firmware and Repositories
 
+Fedora ships pretty bare-bones because of legal reasons. RPM Fusion is where all the actually useful stuff lives (codecs, drivers, etc.).
+
 ```bash
-# Update BIOS and hardware firmware (LVFS)
-fwupdmgr refresh --force
-fwupdmgr get-updates
-fwupdmgr update
+# See what hardware can be updated
+sudo fwupdmgr get-devices
 
-# Install RPM Fusion (Free and Non-Free)
-sudo dnf install https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm -y
+# Refresh the firmware database, check for updates, and apply them
+sudo fwupdmgr refresh --force
+sudo fwupdmgr get-updates
+sudo fwupdmgr update
+```
+> **⚠️ Note:** After firmware updates, you need a reboot.
 
-# Install basic development tools
-sudo dnf groupinstall "Development Tools" -y
+```bash
+# Get the free and nonfree repositories (NVIDIA drivers, some codecs)
+sudo dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 
-# Enable Flathub (Global and updated Flatpak repository)
+# Install AppStream metadata
+sudo dnf install rpmfusion-free-appstream-data rpmfusion-nonfree-appstream-data -y
+sudo dnf check-update
+
+# Remove the limited Fedora flatpak repo to prevent conflicts
+flatpak remote-delete fedora
+
+# Get access to everything Flathub (Full Repository)
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 ```
 
 ---
 
-## Phase 3: NVIDIA and CUDA
+## Phase 3: NVIDIA, CUDA, and Video Acceleration
 
-Proprietary driver installation for the RTX 3050 (essential for emulators and local AI).
+Install prerequisites and drivers for your RTX 3050 (essential for emulators and local AI), plus Vulkan and Intel acceleration.
 
 ```bash
-# Install drivers and CUDA support
+# Install kernel headers and dev tools (Prerequisites)
+sudo dnf install kernel-devel kernel-headers gcc make dkms acpid libglvnd-glx libglvnd-opengl libglvnd-devel pkgconfig -y
+
+# Install NVIDIA drivers and CUDA support
 sudo dnf install akmod-nvidia xorg-x11-drv-nvidia-cuda -y
+
+# Core Packages (AMD & Intel): Vulkan and basic acceleration
+sudo dnf install mesa-vulkan-drivers vulkan-loader mesa-libGLU libva-utils -y
 ```
 
-> **⏳ WAIT:** The module compilation happens in the background. Wait about 5 to 10 minutes and run the command below:
+> **⏳ WAIT:** The NVIDIA module compilation happens in the background. Wait about 5 to 10 minutes and run the command below:
 ```bash
 modinfo -F version nvidia
 ```
@@ -63,30 +85,45 @@ modinfo -F version nvidia
 
 ---
 
-## Phase 4: System Optimizations, Codecs, and AppImages
+## Phase 4: System Optimizations, Codecs, and Useful Stuff
 
-Tweaks to save battery life, speed up the UI, improve display compatibility, and clean up the system.
+Tweaks to save battery life, speed up the UI, install missing codecs, and add core utilities.
 
 ```bash
-# 1. AppImage Support (Mandatory to run Cursor IDE)
-sudo dnf install fuse-libs -y
+# 1. Archive Support (For extracting .rar, .7z, etc.)
+sudo dnf install -y p7zip p7zip-plugins unrar
 
-# 2. Multimedia Codecs and Video Acceleration (Intel i5)
+# 2. AppImage Support (Mandatory to run Cursor IDE)
+sudo dnf install -y fuse fuse-libs
+flatpak install -y flathub it.mijorus.gearlever # Optional: AppImage manager
+
+# 3. GNOME Utilities
+sudo dnf install -y gnome-tweaks
+flatpak install -y flathub com.mattjakeman.ExtensionManager
+
+# 4. Multimedia Codecs and Video Acceleration (Intel i5 & NVIDIA VA-API)
 sudo dnf swap 'ffmpeg-free' 'ffmpeg' --allowerasing -y
 sudo dnf update @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin -y
-sudo dnf group install -y sound-and-video
-sudo dnf install ffmpeg-libs libva libva-utils openh264 gstreamer1-plugin-openh264 mozilla-openh264 -y
+sudo dnf groupupdate sound-and-video -y
+sudo dnf install -y ffmpeg-libs libva libva-utils libva-nvidia-driver
 sudo dnf swap libva-intel-media-driver intel-media-driver --allowerasing -y
-sudo dnf install libva-intel-driver -y
-sudo dnf config-manager setopt fedora-cisco-openh264.enabled=1
+sudo dnf install -y libva-intel-driver
 
-# 3. Disable GNOME animations for maximum fluidity
+# 5. Firefox Video Fix (Cisco Codec for H.264)
+sudo dnf install -y openh264 gstreamer1-plugin-openh264 mozilla-openh264
+sudo dnf config-manager --set-enabled fedora-cisco-openh264
+sudo dnf update -y
+```
+> **⚠️ Important:** Restart Firefox and check that the OpenH264 plugin is enabled in `about:addons`.
+
+```bash
+# 6. Disable GNOME animations for maximum fluidity
 gsettings set org.gnome.desktop.interface enable-animations false
 
-# 4. Enable Fractional Scaling on Wayland (Ideal for external monitors)
+# 7. Enable Fractional Scaling on Wayland (Ideal for external monitors)
 gsettings set org.gnome.mutter experimental-features "['scale-monitor-framebuffer']"
 
-# 5. Speed up boot time by disabling network wait
+# 8. Speed up boot time (by ~15s-20s) by disabling network wait
 sudo systemctl disable NetworkManager-wait-online.service
 ```
 
@@ -202,18 +239,31 @@ sudo dnf install google-chrome-stable firefox code -y
 
 **Manual Tools / AI:**
 *   **JetBrains Toolbox (Android Studio and IntelliJ IDEA):** [Download](https://www.jetbrains.com/toolbox-app/)
-*   **Cursor IDE (.AppImage):** [Download](https://cursor.com/download)
+*   **Cursor IDE (.AppImage):** [Download](https://cursor.com/download) - *You can use Gearlever (installed in Phase 4) to manage it easily!*
 *   **OpenCode CLI:** `npm install -g @opencode/cli`
 *   **Antigravity:** Download the official desktop/CLI, move the executable to `~/.local/bin/` and run `chmod +x`.
+
+---
+
+## Phase 11: System Cleanup
+
+After installing everything, it's a good idea to clean up residual files and orphaned packages to keep your system lean.
+
+```bash
+# Clean package cache and remove orphaned packages
+sudo dnf clean all
+sudo dnf autoremove -y
+```
 
 ---
 
 ## 🔥 Bonus: Force NVIDIA on the Emulator (Prime Offload)
 
 To make the emulator run smoothly using the RTX 3050 instead of Intel Graphics:
-1. In Android Studio, edit the Emulator and change **Graphics** to `Hardware - GLES 2.0`.
-2. Add this alias to your `~/.bashrc` to launch standalone emulators from the terminal using the dedicated GPU:
-   ```bash
-   alias emulador-nvidia='__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia emulator'
-   ```
-   *Usage:* `emulador-nvidia -avd YOUR_AVD_NAME`
+
+1.  In Android Studio, edit the Emulator and change **Graphics** to `Hardware - GLES 2.0`.
+2.  Add this alias to your `~/.bashrc` to launch standalone emulators from the terminal using the dedicated GPU:
+    ```bash
+    alias emulador-nvidia='__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia emulator'
+    ```
+    *Usage:* `emulador-nvidia -avd YOUR_AVD_NAME`
