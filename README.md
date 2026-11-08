@@ -6,64 +6,64 @@
 
 # Setup Guide: Fedora Linux 45 (Fullstack & Mobile)
 
-**OS:** Fedora Linux 45 (GNOME 51.1 - Wayland) | **Secure Boot:** Disabled
-
+**OS:** Fedora Linux 45 (GNOME 51.1 - Wayland) | **Secure Boot:** Disabled  
 **Stack:** Java, Node.js, Python, Go, Rust, Flutter, Native Android
 
 ---
 
-## Phase 1: Base Update (Crucial)
+## Phase 1: DNF & Base Update (Crucial)
 
-We need to update because fresh installs always have outdated packages. Ensure you are running the latest kernel before installing any drivers.
+Configure DNF for maximum speed and ensure you are running the latest kernel before installing hardware drivers.
 
 ```bash
-# Update everything
+# 1. Optimize DNF Configuration
+sudo bash -c 'cat <<EOF >> /etc/dnf/dnf.conf
+max_parallel_downloads=10
+fastestmirror=True
+defaultyes=True
+EOF'
+
+# 2. Perform full system upgrade
 sudo dnf update -y
 ```
-> **⚠️ IMPORTANT:** It is recommended to reboot after updating, especially if the kernel was updated.
+> **⚠️ IMPORTANT:** Reboot your system now if the `kernel` package was updated before proceeding to Phase 2.
 
 ---
 
 ## Phase 2: Firmware & Repositories
 
-### Firmware Updates
-Your hardware probably has newer firmware available. This actually matters for things like WiFi and battery life.
+### Firmware Updates (LVFS)
 ```bash
-# See what can be updated
 sudo fwupdmgr get-devices
-# Refresh the firmware database
 sudo fwupdmgr refresh --force
-# Check for updates
 sudo fwupdmgr get-updates
-# Apply them
 sudo fwupdmgr update
 ```
-> **⚠️ Note:** After firmware updates, you need a reboot.
+> **⚠️ Note:** Firmware updates require a reboot to take effect.
 
-### RPM Fusion
-Fedora ships pretty bare-bones because of legal reasons. RPM Fusion is where all the actually useful stuff lives.
+### RPM Fusion & Base Packages
+RPM Fusion provides essential non-free drivers and multimedia codecs.
 ```bash
-# Get the free repository
-sudo dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
+# Free & Non-Free Repositories
+sudo dnf install -y \
+  https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+  https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 
-# Get the nonfree repository (NVIDIA drivers, some codecs)
-sudo dnf install -y https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
-
-# Install AppStream metadata
+# AppStream Metadata
 sudo dnf install -y rpmfusion-free-appstream-data rpmfusion-nonfree-appstream-data
 sudo dnf check-update
 
-# Install basic compile tools
+# Core Development Tools & Utilities
 sudo dnf groupinstall "Development Tools" -y
+sudo dnf install -y git curl wget gnupg2 flatpak fontconfig fzf gnome-keyring openssl p7zip p7zip-plugins unrar unzip
 ```
 
 ### Flathub Setup
-Fedora comes with a neutered version of Flatpak. Flathub is where the actual apps are.
 ```bash
-# Remove the limited Fedora repo to prevent conflicts
-flatpak remote-delete fedora
+# Remove limited Fedora Flatpak repo to prevent duplicate listings
+flatpak remote-delete fedora 2>/dev/null || true
 
-# Get access to the full Flathub repository
+# Add complete Flathub repository
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 ```
 
@@ -71,113 +71,59 @@ flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flat
 
 ## Phase 3: NVIDIA & Graphics Drivers
 
-### Prerequisites
-Install kernel headers and dev tools:
+### Prerequisites & Driver Installation
 ```bash
+# Install kernel headers and dev packages
 sudo dnf install -y kernel-devel kernel-headers gcc make dkms acpid libglvnd-glx libglvnd-opengl libglvnd-devel pkgconfig
-```
 
-### NVIDIA Drivers (Secure Boot Disabled)
-NVIDIA drivers on Fedora are best installed via RPM Fusion's `akmod-nvidia`.
-```bash
-# Install drivers and CUDA support (Crucial for AI and Emulators)
+# Install NVIDIA Drivers & CUDA (Secure Boot Disabled)
 sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia-cuda
 ```
-> **⏳ WAIT:** The module compilation happens in the background. Wait 5-10 minutes and run:
-> `modinfo -F version nvidia`
-> *If it returns the driver version (e.g., 550.xx), it was successful. **Reboot your system.** *
+> **⏳ WAIT:** Mappings take 5-10 minutes to compile. Verify completion by executing:  
+> `modinfo -F version nvidia`  
+> *If a version number (e.g., 550.xx) returns, reboot your system.*
 
-> **💡 Note on Hybrid Graphics:** On Wayland, the **Intel integrated GPU** takes care of rendering the GNOME UI by default, maximizing battery life. The NVIDIA GPU stays suspended and only kicks in on-demand for heavy tasks.
+> **💡 Note on Hybrid Graphics:** On Wayland, the **Intel iGPU** renders the GNOME UI by default for battery savings. The RTX 3050 operates on-demand via PRIME Offload.
 
 ### Intel (Video Acceleration)
-Make sure media works optimally on the integrated Intel i5 processor.
 ```bash
-sudo dnf install -y mesa-vulkan-drivers vulkan-loader mesa-libGLU libva-utils
-# Intel video acceleration (for newer Intel GPUs)
-sudo dnf install -y intel-media-driver
+sudo dnf install -y mesa-vulkan-drivers vulkan-loader mesa-libGLU libva-utils intel-media-driver
 ```
 
 ---
 
-## Phase 4: Media, Archives & Optimizations
+## Phase 4: Full Multimedia & Codecs Stack
 
-### Video Codecs
-Fedora ships with basically no codecs because of patent issues.
 ```bash
-# Swap to full FFmpeg
+# 1. Swap to full FFmpeg from RPM Fusion
 sudo dnf swap ffmpeg-free ffmpeg --allowerasing -y
 
-# Update multimedia group (GStreamer full + codecs)
+# 2. Update Multimedia Group (GStreamer Plugins + Audio/Video Codecs)
+# H.264, H.265, FLAC, FAAC, AAC, MP3 (LAME)
 sudo dnf update @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin -y
-
-# Optional sound/video group
 sudo dnf groupupdate sound-and-video -y
-```
+sudo dnf install -y gstreamer1-plugins-bad-free gstreamer1-plugins-ugly vlc
 
-### Hardware Acceleration (VA-API)
-```bash
-sudo dnf install -y ffmpeg-libs libva libva-utils
+# 3. Hardware Acceleration (VA-API)
+sudo dnf install -y ffmpeg-libs libva libva-utils libva-intel-driver libva-nvidia-driver
 sudo dnf swap libva-intel-media-driver intel-media-driver --allowerasing -y
-sudo dnf install -y libva-intel-driver
-# NVIDIA specific VA-API
-sudo dnf install -y libva-nvidia-driver
-```
 
-### Firefox Video Fix
-```bash
+# 4. Firefox OpenH264 Support
 sudo dnf install -y openh264 gstreamer1-plugin-openh264 mozilla-openh264
 sudo dnf config-manager --set-enabled fedora-cisco-openh264
 sudo dnf update -y
 ```
-> **⚠️ Important:** Restart Firefox and check that the OpenH264 plugin is enabled in `about:addons`.
-
-### Archives & AppImages
-```bash
-# Archive utilities
-sudo dnf install -y unzip p7zip p7zip-plugins unrar
-
-# Install FUSE (Required for AppImages like Cursor)
-sudo dnf install -y fuse fuse-libs
-
-# Optional: AppImage manager (Gearlever)
-flatpak install -y flathub it.mijorus.gearlever
-```
-
-### System Optimizations
-```bash
-# Disable UI Animations for maximum speed
-gsettings set org.gnome.desktop.interface enable-animations false
-
-# Disable NetworkManager-wait-online.service (Faster boot)
-sudo systemctl disable NetworkManager-wait-online.service
-```
-**Disable GNOME Software Autostart (Saves RAM):**
-```bash
-mkdir -p ~/.config/autostart
-cp /usr/share/applications/org.gnome.Software.desktop ~/.config/autostart/
-echo "X-GNOME-Autostart-enabled=false" >> ~/.config/autostart/org.gnome.Software.desktop
-dconf write /org/gnome/desktop/search-providers/disabled "['org.gnome.Software.desktop']"
-```
 
 ---
 
-## Phase 5: Utilities & GNOME Tweaks
+## Phase 5: Developer Fonts, Terminal & Shell Setup
 
+### Developer & Microsoft Fonts
 ```bash
-# Vital terminal utilities
-sudo dnf install -y curl wget htop btop git jq
+# System Repositories
+sudo dnf install -y fira-code-fonts cascadia-code-fonts jetbrains-mono-fonts msttcore-fonts-installer
 
-# GNOME Tweaks & Extension Manager
-sudo dnf install -y gnome-tweaks
-flatpak install -y flathub com.mattjakeman.ExtensionManager
-```
-
-### Developer Fonts
-```bash
-# 1. Install Fedora Repository Fonts
-sudo dnf install -y fira-code-fonts cascadia-code-fonts jetbrains-mono-fonts
-
-# 2. Download and Install Google Fonts directly to local user
+# Google Sans Suite (Local User Fonts)
 mkdir -p ~/.local/share/fonts/google-fonts
 cd ~/.local/share/fonts/google-fonts
 
@@ -190,32 +136,40 @@ unzip -qo GoogleSansCode.zip
 unzip -qo GoogleSansFlex.zip
 rm -f *.zip
 
-# Refresh Font Cache
 fc-cache -fv
 cd -
 ```
 
-### Oh My Posh & Mise
+### Oh My Posh & Mise Setup
 ```bash
-# Oh My Posh (Ultra-fast prompt)
+# Terminal Prompt (Oh My Posh)
 curl -s https://ohmyposh.dev/install.sh | bash -s
 echo 'eval "$(oh-my-posh init bash)"' >> ~/.bashrc
 
-# Mise (Environment & Tool Manager)
+# Version Manager (Mise)
 curl https://mise.run | sh
 echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc
+
+# Starship Prompt (Alternative)
+sudo dnf install -y starship
 ```
 
 ---
 
-## Phase 6: Containers & Python Build Dependencies
+## Phase 6: Containers & Cloud Infrastructure
 
 ```bash
-# Native Podman ecosystem
+# Podman Container Suite
 sudo dnf install -y podman podman-compose podman-docker
 systemctl --user enable --now podman.socket
 
-# Heavy dependencies for local compilation (Crucial for Python via mise)
+# Cloud & Kubernetes CLI Tools
+sudo dnf install -y kubectl
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip -q awscliv2.zip
+sudo ./aws/install && rm -rf aws awscliv2.zip
+
+# Python & Native Build Dependencies
 sudo dnf install -y gcc make zlib-devel bzip2-devel readline-devel sqlite-devel openssl-devel tk-devel libffi-devel xz-devel
 ```
 
@@ -223,18 +177,17 @@ sudo dnf install -y gcc make zlib-devel bzip2-devel readline-devel sqlite-devel 
 
 ## Phase 7: Programming Languages (Mise)
 
-Install the LTS versions (or latest stable if LTS doesn't apply) for your stack.
 ```bash
 mise registry
 
-# Install global versions
+# Global Runtime Versions (LTS prioritized)
 mise use --global java@21      # LTS
 mise use --global node@22      # LTS
 mise use --global python@latest
 mise use --global go@latest
 mise use --global rust@latest
 
-# Enable yarn and pnpm natively
+# Node Package Managers
 corepack enable
 ```
 
@@ -242,72 +195,57 @@ corepack enable
 
 ## Phase 8: Mobile Ecosystem (Android & Flutter)
 
-### 1. KVM (Android Emulator Acceleration)
+### KVM Virtualization & Flutter SDK
 ```bash
+# KVM Hardware Acceleration
 sudo dnf install -y qemu-kvm libvirt virt-manager
 sudo systemctl enable --now libvirtd
 sudo usermod -aG libvirt,kvm $USER
-```
-*(You must log out and log back in for group changes to take effect)*
 
-### 2. Flutter SDK
-```bash
+# Flutter SDK (Stable)
 sudo dnf install -y clang cmake ninja-build pkgconf-pkg-config gtk3-devel
 git clone https://github.com/flutter/flutter.git -b stable ~/.local/flutter
 ```
 
-### 3. Environment Variables
-Add these to your `~/.bashrc`:
+Add the following to your `~/.bashrc`:
 ```bash
-# Mobile PATHs
 export PATH="$PATH:$HOME/.local/flutter/bin"
 export ANDROID_HOME="$HOME/Android/Sdk"
 export PATH="$PATH:$ANDROID_HOME/emulator"
 export PATH="$PATH:$ANDROID_HOME/platform-tools"
 ```
-Run `source ~/.bashrc`, then accept licenses using `flutter doctor --android-licenses`.
+*Run `source ~/.bashrc` and execute `flutter doctor --android-licenses`.*
 
 ---
 
-## Phase 9: IDEs, Browsers & AI Tools
+## Phase 9: Applications, IDEs & AppImages
 
-### Browsers and VS Code
+### Primary Editors & Browsers
 ```bash
+# Official Google Chrome & VSCode Repositories
 sudo dnf install -y fedora-workstation-repositories
 sudo dnf config-manager --set-enabled google-chrome
 sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
 sudo sh -c 'echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/vscode.repo'
 
-sudo dnf install -y google-chrome-stable firefox code
+sudo dnf install -y google-chrome-stable firefox code DBeaver
 ```
 
-### OpenCode
-**CLI:**
+### AI Toolchain Setup
 ```bash
+# OpenCode CLI & Desktop
 curl -fsSL https://opencode.ai/v2/install | bash
-```
-**Desktop App:**
-```bash
 sudo dnf install -y https://opencode.ai/update/api/latest/desktop/opencode/opencode-desktop-linux-x86_64.rpm
-```
 
-### Antigravity
-**CLI:**
-```bash
+# Antigravity CLI
 curl -fsSL https://antigravity.google/cli/install.sh | bash
-```
-**IDE & App (Installed natively via .desktop entries):**
-```bash
+
+# Antigravity IDE & Desktop Integration
 mkdir -p ~/.local/opt/antigravity-ide ~/.local/opt/antigravity-app
-
-# Extract IDE
 wget -qO- "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.6.0-5526304964083712/linux-x64/Antigravity%20IDE.tar.gz" | tar -xz -C ~/.local/opt/antigravity-ide --strip-components=1
-
-# Extract Desktop App
 wget -qO- "https://storage.googleapis.com/antigravity-public/antigravity-hub/2.29.0-5723181030440960/linux-x64/Antigravity.tar.gz" | tar -xz -C ~/.local/opt/antigravity-app --strip-components=1
 
-# Create GNOME App Launcher entries
-cat <<EOF> ~/.local/share/applications/antigravity-ide.desktop
+cat <<EOF > ~/.local/share/applications/antigravity-ide.desktop
 [Desktop Entry]
 Name=Antigravity IDE
 Exec=$HOME/.local/opt/antigravity-ide/antigravity-ide %U
@@ -317,7 +255,7 @@ Icon=$HOME/.local/opt/antigravity-ide/icon.png
 Categories=Development;IDE;
 EOF
 
-cat <<EOF> ~/.local/share/applications/antigravity-app.desktop
+cat <<EOF > ~/.local/share/applications/antigravity-app.desktop
 [Desktop Entry]
 Name=Antigravity Desktop
 Exec=$HOME/.local/opt/antigravity-app/antigravity-app %U
@@ -326,19 +264,136 @@ Type=Application
 Icon=$HOME/.local/opt/antigravity-app/icon.png
 Categories=Utility;Development;
 EOF
-
-update-desktop-database ~/.local/share/applications/
 ```
 
-### JetBrains & Cursor
-*   **JetBrains Toolbox (Android Studio & IntelliJ):** [Download](https://www.jetbrains.com/toolbox-app/)
-*   **Cursor IDE (.AppImage):** [Download](https://cursor.com/download) *(Use Gearlever to manage AppImages)*
+### Zed Editor & AppImages (Obsidian, Bitwarden, Postman, Insomnia, Draw.io, Typora)
+```bash
+# Zed Editor
+curl -f https://zed.dev/install.sh | sh
+
+# AppImage Infrastructure (FUSE & Gearlever)
+sudo dnf install -y fuse fuse-libs
+flatpak install -y flathub it.mijorus.gearlever
+
+# Bitwarden CLI
+sudo dnf install -y bitwarden-cli 2>/dev/null || npm install -g @bitwarden/cli
+
+# Directory for AppImages
+mkdir -p ~/.local/bin ~/.local/opt
+```
+
+*  **JetBrains Toolbox (Android Studio & IntelliJ):** [Download Toolbox](https://www.jetbrains.com/toolbox-app/)
+*  **Cursor IDE (.AppImage):** [Download Cursor](https://cursor.com/download)
 
 ---
 
-## Phase 10: System Cleanup
+## Phase 10: GNOME Desktop & Ptyxis Customizations
 
-Clean package cache and remove orphaned packages:
+### GNOME Behavior & Interface Settings
+```bash
+# Enable Dark Mode & Night Light (8 PM - 8 AM)
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+gsettings set org.gnome.settings-daemon.plugins.color night-light-enabled true
+
+# Window Buttons & Fixed Workspaces (3 Workspaces)
+gsettings set org.gnome.desktop.wm.preferences button-layout 'appmenu:minimize,maximize,close'
+gsettings set org.gnome.mutter dynamic-workspaces false
+gsettings set org.gnome.desktop.wm.preferences num-workspaces 3
+
+# UI Animation Removal for Maximum Speed
+gsettings set org.gnome.desktop.interface enable-animations false
+
+# Visual Feedback on Sudo Password Entry (Asterisks)
+echo 'Defaults pwfeedback' | sudo tee /etc/sudoers.d/pwfeedback
+
+# GNOME Tweaks & Extension Manager
+sudo dnf install -y gnome-tweaks
+flatpak install -y flathub com.mattjakeman.ExtensionManager
+```
+
+### Ptyxis Terminal Tuning
+```bash
+# Custom Keybinding (Super+T for Ptyxis)
+gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/']"
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ name 'Terminal'
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ command 'ptyxis'
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ binding '<Super>t'
+```
+
+---
+
+## Phase 11: Advanced Kernel & I/O Optimizations
+
+### 1. Kernel Tuning (`sysctl`)
+```bash
+sudo bash -c 'cat <<EOF > /etc/sysctl.d/99-developer-performance.conf
+# Favor RAM over ZRAM swap
+vm.swappiness=10
+
+# Increase VFS cache pressure for SSDs
+vm.vfs_cache_pressure=50
+
+# Lower dirty page writeback latency
+vm.dirty_ratio=10
+vm.dirty_background_ratio=3
+
+# Increase inotify file watch limit for IDEs (VSCode/IntelliJ)
+fs.inotify.max_user_watches=524288
+
+# TCP Backlog Tuning for Containers
+net.core.somaxconn=1024
+EOF'
+
+sudo sysctl --system
+```
+
+### 2. I/O Schedulers (Udev Rules)
+```bash
+sudo bash -c 'cat <<EOF > /etc/udev/rules.d/60-ioschedulers.rules
+# NVMe Drives (Hardware queuing)
+ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/scheduler}="none"
+
+# SATA SSDs (Low latency queuing)
+ACTION=="add|change", KERNEL=="sd[a-z]|mmcblk[0-9]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
+
+# Mechanical HDDs (Budget Fair Queueing)
+ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
+EOF'
+
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+### 3. Journal Management & SSD TRIM
+```bash
+# Restrict Systemd Journal Logs to 100MB
+sudo bash -c 'cat <<EOF > /etc/systemd/journald.conf.d/size-limit.conf
+[Journal]
+SystemMaxUse=100M
+SystemMaxFiles=5
+EOF'
+
+# Enable Weekly & Instant SSD TRIM
+sudo systemctl enable --now fstrim.timer
+sudo fstrim -av
+```
+
+### 4. Disable Unnecessary Startup Services (Saves 900MB RAM)
+```bash
+# Disable NetworkManager Wait Online (Faster boot)
+sudo systemctl disable NetworkManager-wait-online.service
+
+# Prevent GNOME Software Background Autostart
+mkdir -p ~/.config/autostart
+cp /usr/share/applications/org.gnome.Software.desktop ~/.config/autostart/
+echo "X-GNOME-Autostart-enabled=false" >> ~/.config/autostart/org.gnome.Software.desktop
+dconf write /org/gnome/desktop/search-providers/disabled "['org.gnome.Software.desktop']"
+```
+
+---
+
+## Phase 12: System Cleanup
+
+Clean DNF package cache and remove orphaned dependencies:
 ```bash
 sudo dnf clean all
 sudo dnf autoremove -y
@@ -346,11 +401,10 @@ sudo dnf autoremove -y
 
 ---
 
-## 🔥 Bonus: Force NVIDIA on Android Emulator (Prime Offload)
+## 🔥 Bonus: Force NVIDIA GPU on Android Emulator
 
-To ensure your Android emulator runs smoothly using the RTX 3050 instead of Intel Graphics:
-1. In Android Studio, edit the Emulator AVD and set **Graphics** to `Hardware - GLES 2.0`.
-2. Add this alias to your `~/.bashrc` to launch the emulator directly from the terminal using the dedicated GPU:
+1. In Android Studio, set your Emulator AVD **Graphics** to `Hardware - GLES 2.0`.
+2. Add this alias to your `~/.bashrc`:
    ```bash
    alias emulador-nvidia='__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia emulator'
    ```
